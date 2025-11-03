@@ -4,7 +4,7 @@
 # # MuML Labor 1 - SNR und Kontrast
 # 
 # Dieses Jupyter-notebook ist nur als Startpunkt für die Entwicklung der Lösungen gedacht.
-#
+# 
 # 
 # **Idee**
 # 
@@ -21,7 +21,7 @@
 # 3. per ```cd``` (change directory) in das gewünschte Verzeichnis wechseln
 # 4. Entwicklungsumgebung starten, VS Code mittels ```code .``` (Punkt für aktuelles Verzeichnis)
 
-# In[11]:
+# In[2]:
 
 
 import numpy as np
@@ -52,7 +52,8 @@ file = "..\\labdata\\lab1u2_images\\001_disconnectedarea_crack_shunt.jpg"
 # möglichst minimalen Teil der Solarzelle. Die Funktion ist auf das Bild 001_....jpg
 # anzuwenden und das Ergebnisbild ist auszugeben.
 
-# In[8]:
+# In[3]:
+
 
 img = cv2.imread(file, cv2.IMREAD_GRAYSCALE)
 
@@ -61,14 +62,16 @@ plt.imshow(img, cmap='gray') # colormap gray, to avoid false color scheme
 plt.title('Original Image')
 plt.show()
 
-img_width, img_height = img.shape
 
-# In[2]:
+# In[4]:
+
 
 def get_roi(img, row1, col1, row2, col2):
     return img[row1:row2, col1:col2]
 
 SCHNITT = 75
+img_width, img_height = img.shape
+
 row1 = SCHNITT
 col1 = SCHNITT
 row2 = img_width - SCHNITT
@@ -97,10 +100,11 @@ plt.show()
 # 
 # Die Funktion ist auf das ```Bild 001_....jpg``` anzuwenden und das Ergebnisbild auszugeben.
 
-# In[ ]:
+# In[17]:
+
 
 def discard_busbars(img, bar_height, positions):
-    
+
     img_discarded_bars = np.empty((0, img.shape[1]), dtype=img.dtype)
     top_row = 0
     for pos in positions:
@@ -110,19 +114,20 @@ def discard_busbars(img, bar_height, positions):
 
     last_part = img[top_row:, :]   
     img_discarded_bars = np.append(img_discarded_bars, last_part, axis=0)
-        
+
     return img_discarded_bars
 
 roi_discarded_bars = discard_busbars(roi, 45, [80, 390, 700])
 plt.figure(figsize=(12, 12))
 
-#cv2.rectangle(roi_discarded_bars, (30, 400), (40, 590), (0, 255, 0), 1)
-#cv2.rectangle(roi_discarded_bars, (545, 25), (800, 67), (0, 255, 0), 1)
+# cv2.rectangle(roi_discarded_bars, (30, 400), (40, 590), (0, 255, 0), 1)
+# cv2.rectangle(roi_discarded_bars, (545, 25), (800, 67), (0, 255, 0), 1)
 
 
 plt.imshow(roi_discarded_bars, cmap='gray')
 plt.title('Discarded Busbars')
 plt.show()
+
 
 # ## 3.4.4 SNR und Kontrast
 # 
@@ -158,7 +163,8 @@ plt.show()
 # 
 # ### Implementierung mit For-Loop
 
-# In[ ]:
+# In[18]:
+
 
 import math
 
@@ -214,7 +220,7 @@ print(f"Time taken with timeit: {execution_timeit / 1000:.3f} seconds")
 def calc_mean_snr_with_numpy(image, row1, col1, row2, col2):
     """ calculate the mean and the standard deviattion of the rectangle area in the image
         using numpy functions"""
-    
+
     region = image[row1:row2, col1:col2]
     mean = np.mean(region)
 
@@ -222,7 +228,7 @@ def calc_mean_snr_with_numpy(image, row1, col1, row2, col2):
     return mean, std
 
 
-# In[ ]:
+# In[8]:
 
 
 start = time.time()
@@ -252,12 +258,10 @@ def calc_mean_snr_with_cv2(image, row1, col1, row2, col2):
 
     # TODO: implement the function calc_mean_snr_with_cv2 with openCV and return the mean and the standard deviation using cv2 functions
 
-
-
     return mean[0][0], std[0][0]
 
 
-# In[ ]:
+# In[10]:
 
 
 start = time.time()
@@ -287,14 +291,19 @@ print(timeit.timeit('calc_mean_snr_with_cv2(roi_discarded_bars, *bright_area)', 
 # 
 # **Tipp:** Falls hier kein Unterschied zu obigen Ausgaben visuell zu erkennen ist, wurde vielleicht zuvor das Bild mittels ```plt.imshow``` angezeigt, ohne die automatische Bildverbesserung per Parameter ```vmin=0, vmax=255``` zu deaktivieren, wie unten am Beispiel gezeigt.  
 
-# In[ ]:
+# In[12]:
 
+def grauwertSpreizung(img):
+    min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(img)
+    pixelgrauwert = img[:, :]
+    return ((pixelgrauwert-min_val)/(max_val - min_val))*255
 
 def contrast_stretching(img):
     """ apply contrast stretching to the image"""
-
-    stretched = cv2.equalizeHist(img)
-    min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(img)
+    #stretched = cv2.equalizeHist(img) Das ist nicht notwendig
+    
+    stretched = grauwertSpreizung(img)
+    min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(stretched)
     print("min Wert = %d, max Wert = %d" % (min_val, max_val))
     return stretched.astype(np.uint8)
 
@@ -306,13 +315,12 @@ plt.title('ROI without busbars and contrast stretched')
 plt.show()
 
 
-
-# In[ ]:
+# In[19]:
 
 
 def evaluate(img):
-    mean_bright, std_bright = calc_mean_snr_with_cv2(img, *bright_area)
-    mean_dark, std_dark = calc_mean_snr_with_cv2(img, *dark_area)
+    mean_bright, std_bright = calc_mean_snr_with_numpy(img, *bright_area)
+    mean_dark, std_dark = calc_mean_snr_with_numpy(img, *dark_area)
 
     print(f"bright area: mean {mean_bright:.1f}, std: {std_bright:.1f}, SNR: {(math.log10(mean_bright/std_bright) * 20):.1f} dB")
     print(f"dark area: mean {mean_dark:.1f}, std: {std_dark:.1f}, SNR: {(math.log10(mean_dark/std_dark) * 20):.1f} dB")
@@ -387,11 +395,37 @@ evaluate(roi_discarded_bars_stretched)
 
 # In[ ]:
 
+print("halllo")
+def gauss(x,y,sigma):
+    return 1/(2 * np.pi * sigma**2) * np.exp(-(x**2 + y**2) / 2 * sigma**2)
 
 # Gauß-Kernel mittels numpy erzeugen
 def get_gauss_kernel(size, sigma):
     """ create a Gaussian kernel with the given size and sigma"""
-    # TODO: implement the function get_gauss_kernel
+    koordinaten = np.mgrid[-2:3, -2:3]
+    x = koordinaten[0,:,:]
+    y = koordinaten[1,:,:]
+    print(np.fromfunction(gauss(x,y,sigma), size, dtype=float))
+
+    rowlengthgrid = math.ceil(size[0]/2)
+
+    # Erster Teil: 1 bis 3 (aufsteigend)
+    upRow = np.mgrid[1:rowlengthgrid+1:1]  # ergibt [1, 2, 3]
+
+    # Zweiter Teil: 2 bis 0 (absteigend)
+    downRow = np.mgrid[1:rowlengthgrid:1]  # ergibt [2, 1]
+
+    np.concatenate((upRow, downRow))
+
+    columnlengthgrid = math.ceil(size[1]/2)
+
+    # Erster Teil: 1 bis 3 (aufsteigend)
+    upColumn = np.mgrid[1:rowlengthgrid+1:1]  # ergibt [1, 2, 3]
+
+    # Zweiter Teil: 2 bis 0 (absteigend)
+    downColumn = np.mgrid[1:rowlengthgrid:1]  # ergibt [2, 1]
+    
+    np.concatenate((upColumn, downColumn))
 
     return kernel
 
@@ -405,6 +439,7 @@ plt.figure(figsize=(5, 5))
 plt.imshow(kernel, cmap='gray')
 plt.title('Gaussian Kernel')
 plt.show()
+
 
 
 # In[ ]:
